@@ -1157,54 +1157,55 @@ namespace OpenBabel
                mol.NumAtoms(), mol.NumBonds(), chiralFlag);
       ofs << buff;
 
+
       OBAtom *atom;
       vector<OBAtom*>::iterator i;
+
+      int charge = 0, valence = 0;
       unsigned int aclass = 0;
-      int charge = 0;
+      Parity stereo = NotStereo;
+
       for (atom = mol.BeginAtom(i); atom; atom = mol.NextAtom(i)) {
-        // convert charge
-        switch (atom->GetFormalCharge()) {
-          case 1: charge = 3; break;
-          case 2: charge = 2; break;
-          case 3: charge = 1; break;
-          case -1: charge = 5; break;
-          case -2: charge = 6; break;
-          case -3: charge = 7; break;
-          default: charge = 0; break;
-        }
-        Parity stereo = NotStereo;
-        if (parity.find(atom) != parity.end())
-          stereo = parity[atom];
+        if (!(pConv->IsOption("N", pConv->OUTOPTIONS))) {
+          // convert charge
+          switch (atom->GetFormalCharge()) {
+            case 1: charge = 3; break;
+            case 2: charge = 2; break;
+            case 3: charge = 1; break;
+            case -1: charge = 5; break;
+            case -2: charge = 6; break;
+            case -3: charge = 7; break;
+            default: charge = 0; break;
+          }
+          if (parity.find(atom) != parity.end())
+            stereo = parity[atom];
 
-        
-        int expval = atom->GetExplicitValence();
-        int impval = MDLValence(atom->GetAtomicNum(), atom->GetFormalCharge(), expval);
-        int actual_impval = expval + atom->GetImplicitHCount();
-        int valence;
-        int spin = atom->GetSpinMultiplicity(); // the spin condition below is used for "M  RAD"
-        if (!alwaysSpecifyValence && actual_impval == impval && (spin == 0 || spin >= 4))
-          valence = 0;
-        else
-          valence = actual_impval == 0 ? 15 : actual_impval;
 
-        aclass = 0;
-        if (writeAtomClass) {
-          OBGenericData *data = atom->GetData("Atom Class");
-          if (data) {
-            OBPairInteger* acdata = dynamic_cast<OBPairInteger*>(data); // Could replace with C-style cast if willing to live dangerously
-            if (acdata) {
-              int ac = acdata->GetGenericValue();
-              if (ac > 0) {
-                aclass = (unsigned int)ac;
+          int expval = atom->GetExplicitValence();
+          int impval = MDLValence(atom->GetAtomicNum(), atom->GetFormalCharge(), expval);
+          int actual_impval = expval + atom->GetImplicitHCount();
+          int spin = atom->GetSpinMultiplicity(); // the spin condition below is used for "M  RAD"
+          if (alwaysSpecifyValence || actual_impval != impval || (spin != 0 && spin < 4))
+            valence = actual_impval == 0 ? 15 : actual_impval;
+
+          if (writeAtomClass) {
+            OBGenericData *data = atom->GetData("Atom Class");
+            if (data) {
+              OBPairInteger* acdata = dynamic_cast<OBPairInteger*>(data); // Could replace with C-style cast if willing to live dangerously
+              if (acdata) {
+                int ac = acdata->GetGenericValue();
+                if (ac > 0) {
+                  aclass = (unsigned int)ac;
+                }
               }
             }
           }
         }
 
         snprintf(buff, BUFF_SIZE, "%10.4f%10.4f%10.4f %-3s%2d%3d%3d%3d%3d%3d%3d%3d%3d%3d%3d%3d",
-          atom->GetX(), atom->GetY(), atom->GetZ(),
-          AtomSymbol(pmol, atom),
-          0,charge,stereo,0,0,valence,0,0,0,aclass,0,0);
+                 atom->GetX(), atom->GetY(), atom->GetZ(),
+                 AtomSymbol(pmol, atom),
+                 0,charge,stereo,0,0,valence,0,0,0,aclass,0,0);
         ofs << buff << endl;
       }
 
